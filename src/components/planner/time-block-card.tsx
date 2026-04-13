@@ -44,12 +44,12 @@ export function TimeBlockCard({ block, onClick }: TimeBlockCardProps) {
       }}
       {...listeners}
       {...attributes}
-      className={`absolute left-8 right-1 rounded-md px-2 py-1 text-left cursor-grab hover:shadow-md transition-shadow overflow-hidden z-10 ${isDragging ? "opacity-50 shadow-lg" : ""}`}
+      className={`absolute left-8 right-1 rounded-lg px-2 py-1.5 text-left cursor-grab hover:shadow-md transition-all duration-150 overflow-hidden z-10 ${isDragging ? "opacity-50 shadow-lg scale-[1.02]" : "hover:brightness-[0.97]"}`}
       style={{
         top: `${top}px`,
         height: `${height}px`,
         borderLeft: `3px solid ${categoryColor}`,
-        backgroundColor: `${categoryColor}1A`,
+        backgroundColor: `${categoryColor}18`,
         ...dragStyle,
       }}
     >

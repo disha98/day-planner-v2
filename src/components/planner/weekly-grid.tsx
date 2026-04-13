@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react";
 import { addDays, format, isToday } from "date-fns";
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { TimeBlock } from "@/types";
+import { TimeBlock, Holiday, DayWeather } from "@/types";
 import { DayColumn } from "@/components/planner/day-column";
 
 interface WeeklyGridProps {
@@ -14,6 +14,8 @@ interface WeeklyGridProps {
   onSlotClick: (date: string, hour: number) => void;
   onBlockClick: (block: TimeBlock) => void;
   onUpdateBlock?: (id: string, data: Partial<TimeBlock>) => void;
+  holidays?: Map<string, Holiday[]>;
+  weather?: Map<string, DayWeather>;
 }
 
 export function WeeklyGrid({
@@ -24,6 +26,8 @@ export function WeeklyGrid({
   onSlotClick,
   onBlockClick,
   onUpdateBlock,
+  holidays,
+  weather,
 }: WeeklyGridProps) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -68,6 +72,8 @@ export function WeeklyGrid({
               onBlockClick={onBlockClick}
               selectedDate={selectedDate}
               onSelectDate={onSelectDate}
+              holidays={holidays?.get(dateStr)}
+              weather={weather?.get(dateStr)}
             />
           );
         })}

@@ -42,7 +42,7 @@ export function TodoInput({ categories, onAdd }: TodoInputProps) {
   }
 
   return (
-    <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-lg px-3 py-2">
+    <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2.5 shadow-sm">
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}

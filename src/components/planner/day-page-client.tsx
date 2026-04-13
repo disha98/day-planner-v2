@@ -9,6 +9,9 @@ import { DayView } from "@/components/planner/day-view";
 import { TimeBlockModal } from "@/components/planner/time-block-modal";
 import { useTimeBlocks } from "@/lib/hooks/use-time-blocks";
 import { useCategories } from "@/lib/hooks/use-categories";
+import { useHolidays } from "@/lib/hooks/use-holidays";
+import { useWeather } from "@/lib/hooks/use-weather";
+import { usePreferences } from "@/lib/hooks/use-preferences";
 import { TimeBlock } from "@/types";
 
 interface DayPageClientProps {
@@ -28,6 +31,9 @@ export default function DayPageClient({ dateParam }: DayPageClientProps) {
   const weekStartStr = format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const { blocks, createBlock, updateBlock, deleteBlock } = useTimeBlocks(weekStartStr);
   const { categories } = useCategories();
+  const { countryCode, latitude, longitude, tempUnit } = usePreferences();
+  const { holidays } = useHolidays(countryCode);
+  const { weather } = useWeather(latitude, longitude, tempUnit);
 
   const handleBlockClick = useCallback((block: TimeBlock) => {
     setEditingBlock(block);
@@ -89,6 +95,8 @@ export default function DayPageClient({ dateParam }: DayPageClientProps) {
           categories={categories}
           onEditBlock={handleBlockClick}
           onAddBlock={handleAddBlock}
+          holidays={holidays}
+          weather={weather}
         />
       </div>
 

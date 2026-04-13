@@ -1,23 +1,31 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import db from "@/lib/db";
+import { useSupabase } from "./use-supabase";
 
 export function useDailyNote(date: string) {
+  const { client, userId, loading: authLoading } = useSupabase();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const debounceRef = useRef<NodeJS.Timeout>(undefined);
 
   const fetchNote = useCallback(async () => {
+    if (!client || !userId) return;
     setLoading(true);
-    const note = await db.daily_notes.where("date").equals(date).first();
-    setContent(note?.content || "");
+
+    const { data } = await client
+      .from("daily_notes")
+      .select("content")
+      .eq("date", date)
+      .maybeSingle();
+
+    setContent(data?.content ?? "");
     setLoading(false);
-  }, [date]);
+  }, [client, userId, date]);
 
   useEffect(() => {
-    fetchNote();
-  }, [fetchNote]);
+    if (!authLoading && client) fetchNote();
+  }, [authLoading, client, fetchNote]);
 
   const updateContent = useCallback(
     (newContent: string) => {
@@ -25,25 +33,21 @@ export function useDailyNote(date: string) {
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(async () => {
-        const existing = await db.daily_notes.where("date").equals(date).first();
+        if (!client || !userId) return;
         const now = new Date().toISOString();
-        if (existing) {
-          await db.daily_notes.update(existing.id, {
-            content: newContent,
-            updated_at: now,
-          });
-        } else {
-          await db.daily_notes.add({
-            id: crypto.randomUUID(),
+        await client.from("daily_notes").upsert(
+          {
+            user_id: userId,
             date,
             content: newContent,
-            created_at: now,
             updated_at: now,
-          });
-        }
+            created_at: now,
+          },
+          { onConflict: "user_id,date" }
+        );
       }, 500);
     },
-    [date]
+    [client, userId, date]
   );
 
   return { content, loading, updateContent };

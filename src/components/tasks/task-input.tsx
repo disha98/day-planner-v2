@@ -86,7 +86,7 @@ export function TaskInput({ onAdd, categories, selectedDate }: TaskInputProps) {
         </button>
 
         {showPriority && (
-          <div className="absolute right-0 top-full mt-1 w-28 bg-white rounded-md border border-stone-200 shadow-lg py-1 z-20">
+          <div className="absolute right-0 top-full mt-1 w-28 bg-white rounded-lg border border-stone-200/80 shadow-lg py-1 z-20">
             {priorities.map((p) => (
               <button
                 key={p.value}
@@ -130,7 +130,7 @@ export function TaskInput({ onAdd, categories, selectedDate }: TaskInputProps) {
           </button>
 
           {showCategory && (
-            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-md border border-stone-200 shadow-lg py-1 z-20">
+            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg border border-stone-200/80 shadow-lg py-1 z-20">
               <button
                 onClick={() => {
                   setCategoryId("");

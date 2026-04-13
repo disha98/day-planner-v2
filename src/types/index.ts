@@ -58,3 +58,28 @@ export interface DailyNote {
   created_at: string;
   updated_at: string;
 }
+
+export interface Holiday {
+  date: string;
+  name: string;
+  localName: string;
+}
+
+export interface DayWeather {
+  date: string;
+  tempMin: number;
+  tempMax: number;
+  weatherCode: number;
+  precipProbability: number;
+}
+
+export interface UserPreferences {
+  id: string;
+  user_id: string;
+  country_code: string;
+  latitude: number;
+  longitude: number;
+  temp_unit: "celsius" | "fahrenheit";
+  created_at: string;
+  updated_at: string;
+}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { UserButton } from "@clerk/nextjs";
 import { CalendarDays, List, Sun, StickyNote, CheckSquare, Cog, Upload } from "lucide-react";
 
 interface NavItem {
@@ -28,14 +29,14 @@ function NavButton({ item, isActive }: { item: NavItem; isActive: boolean }) {
   return (
     <Link
       href={item.href}
-      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg w-12 transition-colors ${
+      className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg w-12 transition-all duration-200 ${
         isActive
-          ? "text-blue-600 bg-blue-50 border-l-2 border-blue-500"
-          : "text-stone-400 hover:text-stone-600 hover:bg-stone-50 border-l-2 border-transparent"
+          ? "text-stone-800 bg-stone-100"
+          : "text-stone-400 hover:text-stone-600 hover:bg-stone-50"
       }`}
     >
-      <Icon size={20} />
-      <span className="text-[10px] font-medium">{item.label}</span>
+      <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
+      <span className={`text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
     </Link>
   );
 }
@@ -63,15 +64,23 @@ export function LeftNav() {
   }
 
   return (
-    <nav className="w-16 h-full bg-white border-r border-stone-200 flex flex-col items-center pt-4 gap-1 relative z-50">
+    <nav className="w-16 h-full bg-white border-r border-stone-200/80 flex flex-col items-center pt-5 gap-0.5 relative z-50">
       {navItems.map((item) => (
         <NavButton key={item.href} item={item} isActive={isActive(item)} />
       ))}
 
-      <div className="mt-auto mb-16 flex flex-col gap-1">
+      <div className="mt-auto mb-4 flex flex-col items-center gap-0.5">
+        <div className="w-8 h-px bg-stone-100 mx-auto mb-1" />
         {bottomItems.map((item) => (
           <NavButton key={item.href} item={item} isActive={isActive(item)} />
         ))}
+        <div className="mt-2">
+          <UserButton
+            appearance={{
+              elements: { avatarBox: "w-8 h-8" },
+            }}
+          />
+        </div>
       </div>
     </nav>
   );

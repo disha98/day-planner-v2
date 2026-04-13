@@ -13,6 +13,9 @@ import { DayNavigator } from "@/components/planner/day-navigator";
 import { TimeBlockModal } from "@/components/planner/time-block-modal";
 import { useTimeBlocks } from "@/lib/hooks/use-time-blocks";
 import { useCategories } from "@/lib/hooks/use-categories";
+import { useHolidays } from "@/lib/hooks/use-holidays";
+import { useWeather } from "@/lib/hooks/use-weather";
+import { usePreferences } from "@/lib/hooks/use-preferences";
 import { TimeBlock } from "@/types";
 
 type ViewType = "calendar" | "list" | "day";
@@ -40,6 +43,9 @@ export default function PlannerClient() {
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const { blocks, createBlock, updateBlock, deleteBlock } = useTimeBlocks(weekStartStr);
   const { categories } = useCategories();
+  const { countryCode, latitude, longitude, tempUnit } = usePreferences();
+  const { holidays } = useHolidays(countryCode);
+  const { weather } = useWeather(latitude, longitude, tempUnit);
 
   const handleSlotClick = useCallback((date: string, hour: number) => {
     setEditingBlock(null);
@@ -133,6 +139,8 @@ export default function PlannerClient() {
                 onSlotClick={handleSlotClick}
                 onBlockClick={handleBlockClick}
                 onUpdateBlock={updateBlock}
+                holidays={holidays}
+                weather={weather}
               />
             </div>
             <Sidebar selectedDate={selectedDate} categories={categories} />
@@ -148,6 +156,8 @@ export default function PlannerClient() {
               onEditBlock={handleBlockClick}
               onDayClick={handleDayClick}
               onAddBlock={handleAddBlock}
+              holidays={holidays}
+              weather={weather}
             />
           </div>
         )}
@@ -160,6 +170,8 @@ export default function PlannerClient() {
               categories={categories}
               onEditBlock={handleBlockClick}
               onAddBlock={handleAddBlock}
+              holidays={holidays}
+              weather={weather}
             />
           </div>
         )}

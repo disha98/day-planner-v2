@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Upload, ChevronDown, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import db from "@/lib/db";
+import { useSupabase } from "@/lib/hooks/use-supabase";
 import ICAL from "ical.js";
 
 interface ImportViewProps {
@@ -23,13 +23,11 @@ function extractMeetingUrl(vevent: ICAL.Component): string | null {
   const location = vevent.getFirstPropertyValue("location") as string | null;
   const description = vevent.getFirstPropertyValue("description") as string | null;
 
-  // Check LOCATION first — Zoom/Meet often put the URL there
   if (location) {
     const urlMatch = location.match(/https?:\/\/[^\s,]+/);
     if (urlMatch) return urlMatch[0];
   }
 
-  // Fall back to DESCRIPTION
   if (description) {
     const meetingPatterns = [
       /https?:\/\/[\w.-]*zoom\.us\/[^\s\\,]+/,
@@ -146,6 +144,7 @@ function formatHour(h: number) {
 }
 
 export function ImportView({ onComplete }: ImportViewProps) {
+  const { client, userId } = useSupabase();
   const [mode, setMode] = useState<"calendar" | "backup">("calendar");
   const [step, setStep] = useState(1);
   const [expandedGuide, setExpandedGuide] = useState<number | null>(null);
@@ -163,8 +162,12 @@ export function ImportView({ onComplete }: ImportViewProps) {
   const [backupStatus, setBackupStatus] = useState("");
 
   useEffect(() => {
-    db.categories.toArray().then(setCategories);
-  }, []);
+    if (!client) return;
+    client
+      .from("categories")
+      .select("id, name, color")
+      .then(({ data }) => setCategories(data ?? []));
+  }, [client]);
 
   const handleFile = useCallback(async (file: File) => {
     setError("");
@@ -204,10 +207,12 @@ export function ImportView({ onComplete }: ImportViewProps) {
   const filteredEvents = skipAllDay ? events.filter((e) => !e.allDay) : events;
 
   const doImport = useCallback(async () => {
+    if (!client || !userId) return;
     setImporting(true);
     const now = new Date().toISOString();
     const records = filteredEvents.map((e) => ({
       id: crypto.randomUUID(),
+      user_id: userId,
       title: e.title,
       description: null,
       meeting_url: e.meeting_url,
@@ -218,62 +223,51 @@ export function ImportView({ onComplete }: ImportViewProps) {
       created_at: now,
       updated_at: now,
     }));
-    await db.time_blocks.bulkAdd(records);
+    await client.from("time_blocks").insert(records);
     setImportCount(records.length);
     setImported(true);
     setImporting(false);
-  }, [filteredEvents, categoryId]);
+  }, [client, userId, filteredEvents, categoryId]);
 
   const importBackup = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !client || !userId) return;
     try {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      await db.transaction("rw", [db.categories, db.time_blocks, db.tasks, db.daily_notes, db.note_sections, db.note_pages], async () => {
-        if (data.categories?.length) {
-          await db.categories.clear();
-          await db.categories.bulkAdd(data.categories);
-        }
-        if (data.time_blocks?.length) {
-          await db.time_blocks.clear();
-          await db.time_blocks.bulkAdd(data.time_blocks);
-        }
-        if (data.tasks?.length) {
-          await db.tasks.clear();
-          await db.tasks.bulkAdd(data.tasks);
-        }
-        if (data.daily_notes?.length) {
-          await db.daily_notes.clear();
-          await db.daily_notes.bulkAdd(data.daily_notes);
-        }
-        if (data.note_sections?.length) {
-          await db.note_sections.clear();
-          await db.note_sections.bulkAdd(data.note_sections);
-        }
-        if (data.note_pages?.length) {
-          await db.note_pages.clear();
-          await db.note_pages.bulkAdd(data.note_pages);
-        }
-      });
+      const tables = ["categories", "time_blocks", "tasks", "daily_notes", "note_sections", "note_pages"] as const;
+      let total = 0;
 
-      const total = (data.categories?.length || 0) + (data.time_blocks?.length || 0) + (data.tasks?.length || 0) + (data.daily_notes?.length || 0) + (data.note_sections?.length || 0) + (data.note_pages?.length || 0);
+      for (const table of tables) {
+        if (data[table]?.length) {
+          // Clear existing data for this table
+          await client.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          // Add user_id to each record and insert
+          const records = data[table].map((r: Record<string, unknown>) => ({
+            ...r,
+            user_id: userId,
+          }));
+          await client.from(table).insert(records);
+          total += records.length;
+        }
+      }
+
       setBackupStatus(`Imported ${total} items`);
     } catch {
       setBackupStatus("Failed to import — invalid file format.");
     }
     if (backupRef.current) backupRef.current.value = "";
-  }, []);
+  }, [client, userId]);
 
   // Success state
   if (imported) {
     return (
       <div className="max-w-2xl mx-auto p-8 text-center">
-        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
-          <Check size={32} className="text-green-600" />
+        <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-4 ring-1 ring-green-100">
+          <Check size={28} className="text-green-600" />
         </div>
-        <h2 className="text-lg font-semibold text-stone-800 mb-2">
+        <h2 className="text-lg font-semibold text-stone-800 mb-2 tracking-tight">
           Imported {importCount} events
         </h2>
         <p className="text-sm text-stone-500 mb-6">
@@ -286,29 +280,29 @@ export function ImportView({ onComplete }: ImportViewProps) {
 
   return (
     <div className="max-w-2xl mx-auto p-8">
-      <h2 className="text-lg font-semibold text-stone-800 mb-1">Import</h2>
+      <h2 className="text-lg font-semibold text-stone-800 mb-1 tracking-tight">Import</h2>
       <p className="text-sm text-stone-500 mb-6">
         Import calendar events or restore from a backup.
       </p>
 
       {/* Mode toggle */}
-      <div className="flex gap-1 mb-8 bg-stone-100 rounded-lg p-1 w-fit">
+      <div className="flex gap-0.5 mb-8 bg-stone-100 rounded-lg p-1 w-fit">
         <button
           onClick={() => setMode("calendar")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-colors ${
+          className={`text-sm px-4 py-1.5 rounded-md transition-all duration-150 ${
             mode === "calendar"
               ? "bg-white text-stone-800 shadow-sm font-medium"
-              : "text-stone-500 hover:text-stone-700"
+              : "text-stone-500 hover:text-stone-600"
           }`}
         >
           Calendar (.ics)
         </button>
         <button
           onClick={() => setMode("backup")}
-          className={`text-sm px-4 py-1.5 rounded-md transition-colors ${
+          className={`text-sm px-4 py-1.5 rounded-md transition-all duration-150 ${
             mode === "backup"
               ? "bg-white text-stone-800 shadow-sm font-medium"
-              : "text-stone-500 hover:text-stone-700"
+              : "text-stone-500 hover:text-stone-600"
           }`}
         >
           Backup (.json)
@@ -324,10 +318,12 @@ export function ImportView({ onComplete }: ImportViewProps) {
           </p>
           <div
             onClick={() => backupRef.current?.click()}
-            className="border-2 border-dashed border-stone-200 rounded-lg p-8 text-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors"
+            className="border-2 border-dashed border-stone-200 rounded-xl p-10 text-center cursor-pointer hover:border-stone-400 hover:bg-stone-50/50 transition-all duration-150"
           >
-            <Upload size={24} className="mx-auto mb-2 text-stone-400" />
-            <p className="text-sm text-stone-600">
+            <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center mx-auto mb-3">
+              <Upload size={20} className="text-stone-400" />
+            </div>
+            <p className="text-sm text-stone-600 font-medium">
               Drop .json backup file here or click to browse
             </p>
             <input
@@ -351,13 +347,13 @@ export function ImportView({ onComplete }: ImportViewProps) {
         </div>
       )}
 
-      {/* Calendar import - Step 1 */}
+      {/* Calendar import */}
       {mode === "calendar" && (
       <>
       {/* Step 1 */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-6 h-6 rounded-full bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
+          <span className="w-6 h-6 rounded-lg bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
             1
           </span>
           <h3 className="text-sm font-semibold text-stone-800">
@@ -405,7 +401,7 @@ export function ImportView({ onComplete }: ImportViewProps) {
       {/* Step 2 */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-6 h-6 rounded-full bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
+          <span className="w-6 h-6 rounded-lg bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
             2
           </span>
           <h3 className="text-sm font-semibold text-stone-800">
@@ -416,10 +412,12 @@ export function ImportView({ onComplete }: ImportViewProps) {
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
           onClick={() => fileRef.current?.click()}
-          className="ml-8 border-2 border-dashed border-stone-200 rounded-lg p-8 text-center cursor-pointer hover:border-stone-400 hover:bg-stone-50 transition-colors"
+          className="ml-8 border-2 border-dashed border-stone-200 rounded-xl p-10 text-center cursor-pointer hover:border-stone-400 hover:bg-stone-50/50 transition-all duration-150"
         >
-          <Upload size={24} className="mx-auto mb-2 text-stone-400" />
-          <p className="text-sm text-stone-600">
+          <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center mx-auto mb-3">
+            <Upload size={20} className="text-stone-400" />
+          </div>
+          <p className="text-sm text-stone-600 font-medium">
             {fileName || "Drop .ics file here or click to browse"}
           </p>
           <input
@@ -439,14 +437,14 @@ export function ImportView({ onComplete }: ImportViewProps) {
       {step === 3 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-6 h-6 rounded-full bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
+            <span className="w-6 h-6 rounded-lg bg-stone-800 text-white text-xs flex items-center justify-center font-semibold">
               3
             </span>
             <h3 className="text-sm font-semibold text-stone-800">
               Review & Import
             </h3>
           </div>
-          <div className="ml-8 bg-white border border-stone-200 rounded-lg p-4">
+          <div className="ml-8 bg-white border border-stone-200 rounded-xl p-5">
             <p className="text-sm text-stone-700 mb-3">
               Found <strong>{filteredEvents.length}</strong> events
               {events.length !== filteredEvents.length && (

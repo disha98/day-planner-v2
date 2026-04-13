@@ -30,9 +30,9 @@ export function PriorityBadge({ priority }: PriorityBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${bg} ${text}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      <span className={`w-1 h-1 rounded-full ${dot}`} />
       {label}
     </span>
   );

@@ -40,8 +40,11 @@ export function NoteEditor({ page, onUpdateDebounced }: NoteEditorProps) {
   if (!page) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-stone-400">
-        <FileText size={40} className="mb-3 text-stone-300" />
-        <p className="text-sm">Select a page to start writing</p>
+        <div className="w-14 h-14 rounded-2xl bg-stone-100 flex items-center justify-center mb-4">
+          <FileText size={24} className="text-stone-300" />
+        </div>
+        <p className="text-sm font-medium text-stone-500">Select a page to start writing</p>
+        <p className="text-xs text-stone-400 mt-1">Choose a page from the sidebar, or create a new one</p>
       </div>
     );
   }

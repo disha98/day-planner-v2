@@ -72,8 +72,23 @@ export function TodoView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-stone-400 text-sm">
-        Loading...
+      <div className="max-w-3xl mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="skeleton w-48 h-9" />
+          <div className="skeleton w-24 h-9" />
+        </div>
+        <div className="space-y-6">
+          {[1, 2].map((i) => (
+            <div key={i}>
+              <div className="skeleton w-32 h-5 mb-3" />
+              <div className="space-y-1">
+                <div className="skeleton w-full h-10" />
+                <div className="skeleton w-full h-10" />
+                <div className="skeleton w-3/4 h-10" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -82,15 +97,15 @@ export function TodoView() {
     <div className="max-w-3xl mx-auto px-6 py-6">
       {/* Header bar */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-1 bg-stone-100 rounded-lg p-1">
+        <div className="flex gap-0.5 bg-stone-100 rounded-lg p-1">
           {(["all", "active", "completed"] as Filter[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`text-sm px-3 py-1 rounded-md capitalize transition-colors ${
+              className={`text-sm px-3.5 py-1.5 rounded-md capitalize transition-all duration-150 ${
                 filter === f
                   ? "bg-white text-stone-800 shadow-sm font-medium"
-                  : "text-stone-500 hover:text-stone-700"
+                  : "text-stone-500 hover:text-stone-600"
               }`}
             >
               {f}
@@ -102,13 +117,21 @@ export function TodoView() {
 
       {/* Task groups */}
       {grouped.length === 0 ? (
-        <div className="text-center py-16 text-stone-400">
-          <p className="text-sm">
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-14 h-14 rounded-2xl bg-stone-100 flex items-center justify-center mb-4">
+            <Check className="w-7 h-7 text-stone-300" />
+          </div>
+          <p className="text-sm font-medium text-stone-500">
             {filter === "completed"
               ? "No completed tasks yet"
               : filter === "active"
               ? "All caught up!"
-              : "No tasks yet. Add one to get started."}
+              : "No tasks yet"}
+          </p>
+          <p className="text-xs text-stone-400 mt-1">
+            {filter === "active"
+              ? "Time to relax, or add more tasks below"
+              : "Add one below to get started"}
           </p>
         </div>
       ) : (
@@ -116,16 +139,16 @@ export function TodoView() {
           {grouped.map((group) => (
             <div key={group.id}>
               {/* Category header */}
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-stone-100">
+              <div className="flex items-center gap-2.5 mb-2.5 pb-2 border-b border-stone-100">
                 <span
-                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-white"
                   style={{ backgroundColor: group.color }}
                 />
-                <span className="text-sm font-semibold text-stone-700">
+                <span className="text-xs font-semibold text-stone-600 uppercase tracking-wide">
                   {group.name}
                 </span>
-                <span className="text-xs text-stone-400 ml-auto">
-                  {group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}
+                <span className="text-[10px] text-stone-400 ml-auto tabular-nums font-medium">
+                  {group.tasks.length}
                 </span>
               </div>
 
@@ -134,7 +157,7 @@ export function TodoView() {
                 {group.tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="group flex items-center gap-3 px-3 py-2 rounded-md hover:bg-stone-50 transition-colors"
+                    className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-stone-50 transition-all duration-150"
                   >
                     {/* Checkbox */}
                     <button
@@ -187,8 +210,8 @@ export function TodoView() {
       )}
 
       {/* Always-visible quick add */}
-      <div className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-stone-200 bg-white hover:border-stone-300 transition-colors">
-        <Plus size={16} className="text-stone-400 flex-shrink-0" />
+      <div className="mt-6 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-dashed border-stone-200 bg-white/50 hover:border-stone-300 hover:bg-white transition-all duration-150">
+        <Plus size={15} className="text-stone-400 flex-shrink-0" />
         <input
           value={quickAdd}
           onChange={(e) => setQuickAdd(e.target.value)}

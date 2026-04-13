@@ -1,48 +1,73 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import db from "@/lib/db";
+import { useSupabase } from "./use-supabase";
 import { NoteSection } from "@/types";
 
 export function useNoteSections() {
+  const { client, userId, loading: authLoading } = useSupabase();
   const [sections, setSections] = useState<NoteSection[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
-    const rows = await db.note_sections.orderBy("sort_order").toArray();
-    setSections(rows);
+    if (!client || !userId) return;
+
+    const { data } = await client
+      .from("note_sections")
+      .select("id, name, sort_order, created_at")
+      .order("sort_order");
+
+    setSections(data ?? []);
     setLoading(false);
-  }, []);
+  }, [client, userId]);
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    if (!authLoading && client) refetch();
+  }, [authLoading, client, refetch]);
 
-  const createSection = useCallback(async (name: string) => {
-    const maxOrder = await db.note_sections.orderBy("sort_order").last();
-    const record = {
-      id: crypto.randomUUID(),
-      name,
-      sort_order: (maxOrder?.sort_order ?? -1) + 1,
-      created_at: new Date().toISOString(),
-    };
-    await db.note_sections.add(record);
-    await refetch();
-    return record;
-  }, [refetch]);
+  const createSection = useCallback(
+    async (name: string) => {
+      if (!client || !userId) return;
 
-  const renameSection = useCallback(async (id: string, name: string) => {
-    await db.note_sections.update(id, { name });
-    await refetch();
-  }, [refetch]);
+      const { data: last } = await client
+        .from("note_sections")
+        .select("sort_order")
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .single();
 
-  const deleteSection = useCallback(async (id: string) => {
-    await db.transaction("rw", [db.note_sections, db.note_pages], async () => {
-      await db.note_pages.where("section_id").equals(id).delete();
-      await db.note_sections.delete(id);
-    });
-    await refetch();
-  }, [refetch]);
+      const record = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        name,
+        sort_order: ((last?.sort_order as number) ?? -1) + 1,
+        created_at: new Date().toISOString(),
+      };
+      await client.from("note_sections").insert(record);
+      await refetch();
+      return record;
+    },
+    [client, userId, refetch]
+  );
+
+  const renameSection = useCallback(
+    async (id: string, name: string) => {
+      if (!client) return;
+      await client.from("note_sections").update({ name }).eq("id", id);
+      await refetch();
+    },
+    [client, refetch]
+  );
+
+  const deleteSection = useCallback(
+    async (id: string) => {
+      if (!client) return;
+      // note_pages cascade via FK ON DELETE CASCADE
+      await client.from("note_sections").delete().eq("id", id);
+      await refetch();
+    },
+    [client, refetch]
+  );
 
   return { sections, loading, createSection, renameSection, deleteSection, refetch };
 }

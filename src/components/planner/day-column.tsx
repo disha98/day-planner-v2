@@ -3,9 +3,11 @@
 import { useMemo, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useDroppable } from "@dnd-kit/core";
-import { TimeBlock } from "@/types";
+import { Droplets } from "lucide-react";
+import { TimeBlock, Holiday, DayWeather } from "@/types";
 import { HourSlot } from "@/components/planner/hour-slot";
 import { TimeBlockCard } from "@/components/planner/time-block-card";
+import { getWeatherInfo } from "@/lib/weather-utils";
 
 interface DayColumnProps {
   date: Date;
@@ -15,6 +17,8 @@ interface DayColumnProps {
   onBlockClick: (block: TimeBlock) => void;
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
+  holidays?: Holiday[];
+  weather?: DayWeather;
 }
 
 const START_HOUR = 6;
@@ -29,6 +33,8 @@ export function DayColumn({
   onBlockClick,
   selectedDate,
   onSelectDate,
+  holidays,
+  weather,
 }: DayColumnProps) {
   const dateStr = format(date, "yyyy-MM-dd");
   const dayName = format(date, "EEE");
@@ -61,28 +67,56 @@ export function DayColumn({
     return (h - START_HOUR) * HOUR_HEIGHT;
   }, [isToday, now]);
 
+  const weatherInfo = weather ? getWeatherInfo(weather.weatherCode) : null;
+  const WeatherIcon = weatherInfo?.icon;
+
   return (
     <div ref={setNodeRef} className={`flex flex-col border-r border-stone-100 last:border-r-0 min-w-0 transition-colors ${isOver ? "bg-blue-50/40" : ""}`}>
       {/* Column header */}
       <button
         type="button"
         onClick={() => onSelectDate(dateStr)}
-        className={`flex flex-col items-center py-2 border-b border-stone-200 transition-colors ${
-          isSelected ? "bg-stone-100" : "hover:bg-stone-50"
+        className={`flex flex-col items-center py-2 border-b border-stone-200 transition-all duration-150 ${
+          isSelected ? "bg-stone-50" : "hover:bg-stone-50/50"
         }`}
       >
-        <span className="text-[10px] uppercase tracking-wide text-stone-400 font-medium">
+        <span className={`text-[10px] uppercase tracking-wider font-medium ${isToday ? "text-blue-500" : "text-stone-400"}`}>
           {dayName}
         </span>
         <span
-          className={`text-sm font-semibold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full ${
+          className={`text-sm font-semibold mt-0.5 w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
             isToday
-              ? "bg-stone-800 text-white"
+              ? "bg-blue-500 text-white"
+              : isSelected
+              ? "bg-stone-200 text-stone-800"
               : "text-stone-700"
           }`}
         >
           {dayNum}
         </span>
+
+        {/* Weather */}
+        {weather && WeatherIcon && weatherInfo && (
+          <div className="flex items-center gap-1 mt-1.5">
+            <WeatherIcon size={16} className={weatherInfo.color} />
+            <span className="text-[11px] font-medium text-stone-600 tabular-nums">
+              {weather.tempMax}°/{weather.tempMin}°
+            </span>
+            {weather.precipProbability > 30 && (
+              <span className="flex items-center gap-px text-[10px] text-blue-500 font-medium">
+                <Droplets size={10} />
+                {weather.precipProbability}%
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Holiday badge */}
+        {holidays && holidays.length > 0 && (
+          <span className="mt-1 text-[9px] font-medium text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded-full truncate max-w-full">
+            {holidays[0].name}
+          </span>
+        )}
       </button>
 
       {/* Time grid with block overlay */}

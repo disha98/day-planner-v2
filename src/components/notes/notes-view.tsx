@@ -6,7 +6,6 @@ import { useNotePages } from "@/lib/hooks/use-note-pages";
 import { SectionsPanel } from "@/components/notes/sections-panel";
 import { PagesPanel } from "@/components/notes/pages-panel";
 import { NoteEditor } from "@/components/notes/note-editor";
-import db from "@/lib/db";
 
 export function NotesView() {
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
@@ -14,7 +13,7 @@ export function NotesView() {
   const [seeded, setSeeded] = useState(false);
 
   const { sections, loading: sectionsLoading, createSection, renameSection, deleteSection, refetch: refetchSections } = useNoteSections();
-  const { pages, loading: pagesLoading, createPage, updatePageDebounced, deletePage } = useNotePages(selectedSectionId);
+  const { pages, loading: pagesLoading, createPage, updatePage, updatePageDebounced, deletePage } = useNotePages(selectedSectionId);
 
   // Seed default section on first use
   useEffect(() => {
@@ -24,16 +23,6 @@ export function NotesView() {
         const section = await createSection("Personal");
         if (section) {
           setSelectedSectionId(section.id);
-          const now = new Date().toISOString();
-          await db.note_pages.add({
-            id: crypto.randomUUID(),
-            section_id: section.id,
-            title: "Welcome",
-            content: "Welcome to Notes! Create sections to organize your notes, and pages within each section.",
-            sort_order: 0,
-            created_at: now,
-            updated_at: now,
-          });
         }
         setSeeded(true);
       })();
@@ -41,6 +30,21 @@ export function NotesView() {
       setSeeded(true);
     }
   }, [sectionsLoading, sections.length, seeded, createSection]);
+
+  // After seeding a section, create a welcome page once pages load for it
+  useEffect(() => {
+    if (seeded && selectedSectionId && !pagesLoading && pages.length === 0 && sections.length === 1) {
+      (async () => {
+        const page = await createPage("Welcome");
+        if (page) {
+          await updatePage(page.id, {
+            content: "Welcome to Notes! Create sections to organize your notes, and pages within each section.",
+          });
+          setSelectedPageId(page.id);
+        }
+      })();
+    }
+  }, [seeded, selectedSectionId, pagesLoading, pages.length, sections.length, createPage, updatePage]);
 
   // Auto-select first section
   useEffect(() => {

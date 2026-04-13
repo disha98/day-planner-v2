@@ -1,89 +1,136 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import db from "@/lib/db";
+import { useSupabase } from "./use-supabase";
 import { Task } from "@/types";
 
 export function useTasks(date?: string) {
+  const { client, userId, loading: authLoading } = useSupabase();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTasks = useCallback(async () => {
+    if (!client || !userId) return;
     setLoading(true);
-    let rows;
+
+    let query = client
+      .from("tasks")
+      .select("*, categories(name, color)")
+      .order("sort_order");
+
     if (date) {
-      rows = await db.tasks.where("date").equals(date).sortBy("sort_order");
-    } else {
-      rows = await db.tasks.orderBy("sort_order").toArray();
+      query = query.eq("date", date);
     }
 
-    const categories = await db.categories.toArray();
-    const catMap = new Map(categories.map((c) => [c.id, c]));
+    const { data } = await query;
 
-    const enriched: Task[] = rows.map((r) => {
-      const cat = r.category_id ? catMap.get(r.category_id) : null;
+    const enriched: Task[] = (data ?? []).map((r: Record<string, unknown>) => {
+      const cat = r.categories as { name: string; color: string } | null;
       return {
-        ...r,
+        id: r.id as string,
+        title: r.title as string,
+        completed: r.completed as number,
         priority: r.priority as Task["priority"],
+        date: r.date as string | null,
+        sort_order: r.sort_order as number,
+        category_id: r.category_id as string | null,
         category_name: cat?.name ?? null,
         category_color: cat?.color ?? null,
+        created_at: r.created_at as string,
+        updated_at: r.updated_at as string,
       };
     });
 
     setTasks(enriched);
     setLoading(false);
-  }, [date]);
+  }, [client, userId, date]);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (!authLoading && client) fetchTasks();
+  }, [authLoading, client, fetchTasks]);
 
-  const createTask = useCallback(async (data: {
-    title: string;
-    priority?: string;
-    date?: string;
-    category_id?: string;
-  }) => {
-    const maxOrder = await db.tasks.orderBy("sort_order").last();
-    const now = new Date().toISOString();
-    const record = {
-      id: crypto.randomUUID(),
-      title: data.title,
-      completed: 0,
-      priority: data.priority || "medium",
-      date: data.date || null,
-      sort_order: (maxOrder?.sort_order ?? -1) + 1,
-      category_id: data.category_id || null,
-      created_at: now,
-      updated_at: now,
-    };
-    await db.tasks.add(record);
-    await fetchTasks();
-    return record;
-  }, [fetchTasks]);
+  const createTask = useCallback(
+    async (data: {
+      title: string;
+      priority?: string;
+      date?: string;
+      category_id?: string;
+    }) => {
+      if (!client || !userId) return;
 
-  const updateTask = useCallback(async (id: string, data: Partial<Task>) => {
-    const { category_name, category_color, ...storable } = data;
-    await db.tasks.update(id, { ...storable, updated_at: new Date().toISOString() });
-    await fetchTasks();
-  }, [fetchTasks]);
+      // Get max sort_order
+      const { data: last } = await client
+        .from("tasks")
+        .select("sort_order")
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .single();
 
-  const deleteTask = useCallback(async (id: string) => {
-    await db.tasks.delete(id);
-    await fetchTasks();
-  }, [fetchTasks]);
+      const now = new Date().toISOString();
+      const record = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        title: data.title,
+        completed: 0,
+        priority: data.priority || "medium",
+        date: data.date || null,
+        sort_order: ((last?.sort_order as number) ?? -1) + 1,
+        category_id: data.category_id || null,
+        created_at: now,
+        updated_at: now,
+      };
+      await client.from("tasks").insert(record);
+      await fetchTasks();
+      return record;
+    },
+    [client, userId, fetchTasks]
+  );
 
-  const reorderTasks = useCallback(async (orderedIds: string[]) => {
-    await db.transaction("rw", db.tasks, async () => {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await db.tasks.update(orderedIds[i], {
-          sort_order: i,
-          updated_at: new Date().toISOString(),
-        });
-      }
-    });
-    await fetchTasks();
-  }, [fetchTasks]);
+  const updateTask = useCallback(
+    async (id: string, data: Partial<Task>) => {
+      if (!client) return;
+      const { category_name, category_color, ...storable } = data;
+      await client
+        .from("tasks")
+        .update({ ...storable, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      await fetchTasks();
+    },
+    [client, fetchTasks]
+  );
 
-  return { tasks, loading, createTask, updateTask, deleteTask, reorderTasks, refetch: fetchTasks };
+  const deleteTask = useCallback(
+    async (id: string) => {
+      if (!client) return;
+      await client.from("tasks").delete().eq("id", id);
+      await fetchTasks();
+    },
+    [client, fetchTasks]
+  );
+
+  const reorderTasks = useCallback(
+    async (orderedIds: string[]) => {
+      if (!client) return;
+      const now = new Date().toISOString();
+      const updates = orderedIds.map((id, i) => ({
+        id,
+        sort_order: i,
+        updated_at: now,
+      }));
+      // Supabase upsert to batch update sort orders
+      await client.from("tasks").upsert(updates, { onConflict: "id" });
+      await fetchTasks();
+    },
+    [client, fetchTasks]
+  );
+
+  return {
+    tasks,
+    loading,
+    createTask,
+    updateTask,
+    deleteTask,
+    reorderTasks,
+    refetch: fetchTasks,
+  };
 }

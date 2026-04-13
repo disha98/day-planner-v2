@@ -41,9 +41,9 @@ export function SectionsPanel({
   };
 
   return (
-    <div className="w-44 border-r border-stone-200 flex flex-col bg-stone-50/50">
-      <div className="px-3 py-2.5 border-b border-stone-200">
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+    <div className="w-44 border-r border-stone-200/80 flex flex-col bg-stone-50/30">
+      <div className="px-3 py-3 border-b border-stone-200/80">
+        <h3 className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
           Sections
         </h3>
       </div>
@@ -52,10 +52,10 @@ export function SectionsPanel({
         {sections.map((section) => (
           <div
             key={section.id}
-            className={`group flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md cursor-pointer transition-colors ${
+            className={`group flex items-center gap-2 px-3 py-1.5 mx-1 rounded-lg cursor-pointer transition-all duration-150 ${
               selectedId === section.id
-                ? "bg-blue-50 text-blue-700"
-                : "text-stone-700 hover:bg-stone-100"
+                ? "bg-stone-200/60 text-stone-800 font-medium"
+                : "text-stone-600 hover:bg-stone-100/80"
             }`}
             onClick={() => onSelect(section.id)}
           >

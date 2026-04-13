@@ -116,10 +116,10 @@ export function TimeBlockModal({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           autoFocus
-          className="text-base font-medium"
+          className="text-base font-medium !py-2.5"
         />
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-stone-500">
             Description
           </label>
@@ -128,7 +128,7 @@ export function TimeBlockModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full text-sm px-3 py-2 rounded-md border border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors resize-none"
+            className="w-full text-sm px-3 py-2 rounded-lg border border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-300 transition-all duration-150 hover:border-stone-300 resize-none"
           />
         </div>
 
@@ -174,7 +174,7 @@ export function TimeBlockModal({
           onChange={(e) => setCategoryId(e.target.value)}
         />
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-3 border-t border-stone-100 mt-1">
           {isEditing && onDelete ? (
             <Button
               variant="danger"
@@ -184,7 +184,7 @@ export function TimeBlockModal({
                 onClose();
               }}
             >
-              <Trash2 size={14} />
+              <Trash2 size={13} />
               Delete
             </Button>
           ) : (

@@ -18,14 +18,14 @@ function formatHour(hour: number): string {
 export function HourSlot({ hour, date, onClick }: HourSlotProps) {
   return (
     <div
-      className="h-14 border-b border-stone-100 flex items-start group cursor-pointer hover:bg-stone-50 transition-colors"
+      className="h-14 border-b border-stone-100/80 flex items-start group cursor-pointer hover:bg-blue-50/30 transition-all duration-150"
       onClick={() => onClick(date, hour)}
     >
-      <span className="text-[10px] text-stone-400 w-8 pt-1 text-right pr-2 shrink-0 select-none">
+      <span className="text-[10px] text-stone-400 w-8 pt-1 text-right pr-2 shrink-0 select-none tabular-nums font-medium">
         {formatHour(hour)}
       </span>
       <div className="flex-1 h-full relative">
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <Plus size={14} className="text-stone-300" />
         </div>
       </div>
