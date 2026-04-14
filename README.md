@@ -36,6 +36,16 @@ This branch adds four major integrations on top of the original client-side day 
 - "Holidays" category auto-created with pink color
 - Free API, no key required
 
+### Calendar Sharing
+- Share your calendar via a link — click "Share" in the planner header to generate a URL
+- Recipients must sign in; the shared calendar overlays on their own in indigo
+- Toggle checkboxes to show/hide "My Calendar" and "Shared" independently
+- Shared events are read-only — no editing or dragging
+- Shared token persists in localStorage across refreshes; dismiss with the X button
+- Revoke access anytime with "Stop sharing" in the share dialog
+- API routes: `POST /api/share` (create), `GET /api/share/[token]` (fetch shared data), `DELETE /api/share` (revoke)
+- Migration: `supabase-shares-migration.sql` adds the `calendar_shares` table
+
 ### User Preferences
 - **Country** — select holiday country from 25+ options
 - **Temperature unit** — toggle between °C and °F
@@ -97,17 +107,24 @@ src/
 ├── app/
 │   ├── page.tsx                # Landing page (signed-out) or redirect (signed-in)
 │   ├── sign-in/                # Clerk sign-in page
-│   └── sign-up/                # Clerk sign-up page
+│   ├── sign-up/                # Clerk sign-up page
+│   ├── share/[token]/page.tsx  # Share link handler (redirects to /planner?shared=token)
+│   └── api/share/              # Share API routes (create, fetch, revoke)
+├── components/planner/
+│   ├── share-button.tsx        # Share button + copy-link modal
+│   └── calendar-toggle.tsx     # My Calendar / Shared toggle checkboxes
 ├── lib/
 │   ├── supabase.ts             # Supabase public client (anon key)
 │   ├── supabase-admin.ts       # Supabase admin client (secret key, server-side)
 │   ├── weather-utils.ts        # WMO weather code → colored icon mapping
 │   └── hooks/
 │       ├── use-supabase.ts     # Provides Supabase client + Clerk userId
+│       ├── use-shared-calendar.ts # Fetches shared calendar data by token
 │       ├── use-holidays.ts     # Nager.Date public holiday hook
 │       ├── use-weather.ts      # Open-Meteo 16-day forecast hook
 │       └── use-preferences.ts  # User preferences (country, location, temp unit)
 ├── proxy.ts                    # Clerk middleware (route protection)
 supabase-migration.sql          # Database schema + RLS policies
+supabase-shares-migration.sql   # Calendar sharing table
 supabase-disable-rls.sql        # Disables RLS for anon-key usage
 ```
