@@ -15,6 +15,7 @@ export function useNoteSections() {
     const { data } = await client
       .from("note_sections")
       .select("id, name, sort_order, created_at")
+      .eq("user_id", userId)
       .order("sort_order");
 
     setSections(data ?? []);
@@ -32,6 +33,7 @@ export function useNoteSections() {
       const { data: last } = await client
         .from("note_sections")
         .select("sort_order")
+        .eq("user_id", userId)
         .order("sort_order", { ascending: false })
         .limit(1)
         .single();

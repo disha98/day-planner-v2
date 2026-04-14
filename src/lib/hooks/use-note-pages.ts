@@ -20,6 +20,7 @@ export function useNotePages(sectionId: string | null) {
     const { data } = await client
       .from("note_pages")
       .select("id, section_id, title, content, sort_order, created_at, updated_at")
+      .eq("user_id", userId)
       .eq("section_id", sectionId)
       .order("sort_order");
 
@@ -42,6 +43,7 @@ export function useNotePages(sectionId: string | null) {
       const { data: last } = await client
         .from("note_pages")
         .select("sort_order")
+        .eq("user_id", userId)
         .eq("section_id", sectionId)
         .order("sort_order", { ascending: false })
         .limit(1)

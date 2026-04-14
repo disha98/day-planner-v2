@@ -25,6 +25,8 @@ interface ListViewProps {
   onAddBlock: () => void;
   holidays?: Map<string, Holiday[]>;
   weather?: Map<string, DayWeather>;
+  sharedTasks?: Task[];
+  sharedColor?: string;
 }
 
 function formatHour(hour: number): string {
@@ -51,6 +53,8 @@ export function ListView({
   onAddBlock,
   holidays,
   weather,
+  sharedTasks = [],
+  sharedColor,
 }: ListViewProps) {
   const [range, setRange] = useState<"week" | "two-weeks">("week");
 
@@ -101,15 +105,26 @@ export function ListView({
     return map;
   }, [allTasks]);
 
+  const sharedTasksByDate = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    for (const task of sharedTasks) {
+      if (!task.date) continue;
+      if (!map[task.date]) map[task.date] = [];
+      map[task.date].push(task);
+    }
+    return map;
+  }, [sharedTasks]);
+
   const daysWithContent = useMemo(() => {
     return days.filter((day) => {
       const dateStr = format(day, "yyyy-MM-dd");
       const hasBlocks = (blocksByDate[dateStr] ?? []).length > 0;
       const hasTasks = (tasksByDate[dateStr] ?? []).length > 0;
+      const hasSharedTasks = (sharedTasksByDate[dateStr] ?? []).length > 0;
       const hasHoliday = holidays?.has(dateStr);
-      return hasBlocks || hasTasks || hasHoliday;
+      return hasBlocks || hasTasks || hasSharedTasks || hasHoliday;
     });
-  }, [days, blocksByDate, tasksByDate, holidays]);
+  }, [days, blocksByDate, tasksByDate, sharedTasksByDate, holidays]);
 
   const loading = (range === "two-weeks" && loadingBlocks2) || loadingTasks;
 
@@ -324,6 +339,43 @@ export function ListView({
                         {task.category_name}
                       </span>
                     )}
+                  </div>
+                ))}
+
+                {/* Shared tasks (read-only) */}
+                {(sharedTasksByDate[dateStr] ?? []).map((task) => (
+                  <div
+                    key={`shared-${task.id}`}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg opacity-80"
+                  >
+                    <span
+                      className={`flex-shrink-0 ${task.completed ? "opacity-40" : ""}`}
+                      style={{ color: sharedColor ?? "#6366f1" }}
+                    >
+                      {task.completed ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : (
+                        <Circle className="w-4 h-4" />
+                      )}
+                    </span>
+                    <span
+                      className={`text-sm flex-1 truncate ${
+                        task.completed
+                          ? "line-through text-stone-400 opacity-60"
+                          : "text-stone-600"
+                      }`}
+                    >
+                      {task.title}
+                    </span>
+                    <span
+                      className="text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: `${sharedColor ?? "#6366f1"}15`,
+                        color: sharedColor ?? "#6366f1",
+                      }}
+                    >
+                      Shared
+                    </span>
                   </div>
                 ))}
               </div>

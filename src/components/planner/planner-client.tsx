@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { startOfWeek, format, parseISO } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/header";
@@ -16,7 +16,13 @@ import { useCategories } from "@/lib/hooks/use-categories";
 import { useHolidays } from "@/lib/hooks/use-holidays";
 import { useWeather } from "@/lib/hooks/use-weather";
 import { usePreferences } from "@/lib/hooks/use-preferences";
+import { useSharedCalendar } from "@/lib/hooks/use-shared-calendar";
+import { useSupabase } from "@/lib/hooks/use-supabase";
+import { ShareButton } from "@/components/planner/share-button";
+import { CalendarToggle } from "@/components/planner/calendar-toggle";
 import { TimeBlock } from "@/types";
+
+const SHARED_COLOR = "#6366f1"; // indigo-500
 
 type ViewType = "calendar" | "list" | "day";
 
@@ -24,8 +30,22 @@ export default function PlannerClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view");
+  const sharedTokenFromUrl = searchParams.get("shared");
   const activeView: ViewType =
     viewParam === "calendar" || viewParam === "day" ? viewParam : "list";
+
+  // Persist shared token in localStorage
+  const [sharedToken, setSharedToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("sharedCalendarToken");
+  });
+
+  useEffect(() => {
+    if (sharedTokenFromUrl) {
+      localStorage.setItem("sharedCalendarToken", sharedTokenFromUrl);
+      setSharedToken(sharedTokenFromUrl);
+    }
+  }, [sharedTokenFromUrl]);
 
   const now = new Date();
   const [weekStart, setWeekStart] = useState(() =>
@@ -40,12 +60,52 @@ export default function PlannerClient() {
   const [slotDate, setSlotDate] = useState("");
   const [slotHour, setSlotHour] = useState<number | undefined>();
 
+  // Toggle state for calendar visibility
+  const [showMine, setShowMine] = useState(true);
+  const [showShared, setShowShared] = useState(true);
+
   const weekStartStr = format(weekStart, "yyyy-MM-dd");
   const { blocks, createBlock, updateBlock, deleteBlock } = useTimeBlocks(weekStartStr);
   const { categories } = useCategories();
   const { countryCode, latitude, longitude, tempUnit } = usePreferences();
   const { holidays } = useHolidays(countryCode);
   const { weather } = useWeather(latitude, longitude, tempUnit);
+
+  // Current user ID for comparing against shared calendar owner
+  const { userId } = useSupabase();
+
+  // Shared calendar data
+  const { sharedBlocks, sharedTasks, sharedOwnerId } = useSharedCalendar(
+    sharedToken,
+    weekStartStr
+  );
+
+  // If the shared calendar belongs to the current user, don't show it as shared
+  const isOwnShare = !!(userId && sharedOwnerId && userId === sharedOwnerId);
+
+  // Tag shared blocks with the fixed color and a shared marker
+  const taggedSharedBlocks: TimeBlock[] = useMemo(
+    () =>
+      isOwnShare
+        ? []
+        : sharedBlocks.map((b) => ({
+            ...b,
+            id: `shared-${b.id}`,
+            category_color: SHARED_COLOR,
+            category_name: "Shared",
+          })),
+    [sharedBlocks, isOwnShare]
+  );
+
+  const effectiveSharedTasks = isOwnShare ? [] : sharedTasks;
+
+  // Merge blocks based on toggle state
+  const visibleBlocks = useMemo(() => {
+    const result: TimeBlock[] = [];
+    if (showMine) result.push(...blocks);
+    if (showShared && sharedToken && !isOwnShare) result.push(...taggedSharedBlocks);
+    return result;
+  }, [blocks, taggedSharedBlocks, showMine, showShared, sharedToken, isOwnShare]);
 
   const handleSlotClick = useCallback((date: string, hour: number) => {
     setEditingBlock(null);
@@ -55,6 +115,8 @@ export default function PlannerClient() {
   }, []);
 
   const handleBlockClick = useCallback((block: TimeBlock) => {
+    // Don't allow editing shared blocks
+    if (block.id.startsWith("shared-")) return;
     setEditingBlock(block);
     setSlotDate(block.date);
     setSlotHour(undefined);
@@ -96,6 +158,11 @@ export default function PlannerClient() {
     [deleteBlock]
   );
 
+  const handleRemoveShared = useCallback(() => {
+    localStorage.removeItem("sharedCalendarToken");
+    setSharedToken(null);
+  }, []);
+
   const handleDayClick = useCallback((dateStr: string) => {
     router.push(`/day/${dateStr}`);
   }, [router]);
@@ -116,15 +183,28 @@ export default function PlannerClient() {
           "Upcoming"
         }
       >
-        {activeView === "calendar" && (
-          <DateNavigator weekStart={weekStart} onWeekChange={setWeekStart} />
-        )}
-        {activeView === "day" && (
-          <DayNavigator
-            date={selectedDateObj}
-            onDateChange={handleDayDateChange}
-          />
-        )}
+        <div className="flex items-center gap-3">
+          {activeView === "calendar" && (
+            <DateNavigator weekStart={weekStart} onWeekChange={setWeekStart} />
+          )}
+          {activeView === "day" && (
+            <DayNavigator
+              date={selectedDateObj}
+              onDateChange={handleDayDateChange}
+            />
+          )}
+          {sharedToken && !isOwnShare && (
+            <CalendarToggle
+              showMine={showMine}
+              showShared={showShared}
+              onToggleMine={() => setShowMine((v) => !v)}
+              onToggleShared={() => setShowShared((v) => !v)}
+              onRemoveShared={handleRemoveShared}
+              sharedColor={SHARED_COLOR}
+            />
+          )}
+          <ShareButton />
+        </div>
       </Header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -133,7 +213,7 @@ export default function PlannerClient() {
             <div className="flex-1 overflow-auto">
               <WeeklyGrid
                 weekStart={weekStart}
-                blocks={blocks}
+                blocks={visibleBlocks}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
                 onSlotClick={handleSlotClick}
@@ -151,13 +231,15 @@ export default function PlannerClient() {
           <div className="flex-1 overflow-auto">
             <ListView
               weekStart={weekStart}
-              blocks={blocks}
+              blocks={visibleBlocks}
               categories={categories}
               onEditBlock={handleBlockClick}
               onDayClick={handleDayClick}
               onAddBlock={handleAddBlock}
               holidays={holidays}
               weather={weather}
+              sharedTasks={showShared && sharedToken && !isOwnShare ? effectiveSharedTasks : []}
+              sharedColor={SHARED_COLOR}
             />
           </div>
         )}
@@ -166,7 +248,7 @@ export default function PlannerClient() {
           <div className="flex-1 overflow-auto">
             <DayView
               date={selectedDateObj}
-              blocks={blocks}
+              blocks={visibleBlocks}
               categories={categories}
               onEditBlock={handleBlockClick}
               onAddBlock={handleAddBlock}

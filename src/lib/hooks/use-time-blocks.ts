@@ -22,6 +22,7 @@ export function useTimeBlocks(weekStart: string) {
     const { data } = await client
       .from("time_blocks")
       .select("*, categories(name, color)")
+      .eq("user_id", userId)
       .gte("date", weekStart)
       .lte("date", weekEnd)
       .order("start_hour");

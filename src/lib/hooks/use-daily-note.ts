@@ -16,6 +16,7 @@ export function useDailyNote(date: string) {
     const { data } = await client
       .from("daily_notes")
       .select("content")
+      .eq("user_id", userId)
       .eq("date", date)
       .maybeSingle();
 

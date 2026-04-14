@@ -16,6 +16,7 @@ export function useTasks(date?: string) {
     let query = client
       .from("tasks")
       .select("*, categories(name, color)")
+      .eq("user_id", userId)
       .order("sort_order");
 
     if (date) {
@@ -58,10 +59,11 @@ export function useTasks(date?: string) {
     }) => {
       if (!client || !userId) return;
 
-      // Get max sort_order
+      // Get max sort_order for this user
       const { data: last } = await client
         .from("tasks")
         .select("sort_order")
+        .eq("user_id", userId)
         .order("sort_order", { ascending: false })
         .limit(1)
         .single();

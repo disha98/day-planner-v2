@@ -24,7 +24,8 @@ export function useCategories() {
     // Seed defaults if empty
     const { count } = await client
       .from("categories")
-      .select("id", { count: "exact", head: true });
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
 
     if (count === 0) {
       const now = new Date().toISOString();
@@ -42,6 +43,7 @@ export function useCategories() {
     const { data, error: selectError } = await client
       .from("categories")
       .select("id, name, color, created_at")
+      .eq("user_id", userId)
       .order("name");
 
     if (selectError) console.error("categories select error:", selectError);
