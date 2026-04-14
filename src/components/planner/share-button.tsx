@@ -75,44 +75,68 @@ export function ShareButton() {
 
       <Modal open={modalOpen} onClose={handleClose} title="Share Calendar">
         {loading ? (
-          <div className="py-4 text-center text-sm text-stone-400">
+          <div className="py-8 text-center text-sm text-stone-400">
             Creating share link...
           </div>
         ) : isActive && shareUrl ? (
-          <div className="space-y-4">
-            <p className="text-sm text-stone-500">
+          <div className="space-y-5">
+            <p className="text-sm text-stone-500 leading-relaxed">
               Anyone with this link can view your calendar (read-only).
+              They&apos;ll need to sign in first.
             </p>
+
+            {/* Link + copy */}
             <div className="flex gap-2">
               <input
                 type="text"
                 readOnly
                 value={shareUrl}
-                className="flex-1 text-sm border border-stone-200 rounded-lg px-3 py-2 bg-stone-50 text-stone-600 select-all focus:outline-none"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+                className="flex-1 text-sm border border-stone-200 rounded-lg px-3 py-2.5 bg-stone-50 text-stone-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all"
               />
               <button
                 onClick={handleCopy}
-                className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-all ${
+                className={`inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-lg transition-all shrink-0 ${
                   copied
                     ? "bg-green-50 text-green-600 border border-green-200"
-                    : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                 }`}
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? "Copied" : "Copy"}
+                {copied ? "Copied!" : "Copy link"}
               </button>
             </div>
-            <button
-              onClick={handleStopSharing}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-400 hover:text-red-500 transition-colors"
-            >
-              <Link2Off size={12} />
-              Stop sharing
-            </button>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+              <button
+                onClick={handleStopSharing}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-400 hover:text-red-500 transition-colors"
+              >
+                <Link2Off size={12} />
+                Stop sharing
+              </button>
+              <button
+                onClick={handleClose}
+                className="text-sm font-medium text-stone-500 hover:text-stone-700 px-4 py-1.5 rounded-lg hover:bg-stone-50 transition-all"
+              >
+                Done
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="py-4 text-center text-sm text-stone-400">
-            Failed to create share link. Please try again.
+          <div className="space-y-4 py-4">
+            <p className="text-center text-sm text-stone-400">
+              Failed to create share link. Please try again.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={handleClose}
+                className="text-sm font-medium text-stone-500 hover:text-stone-700 px-4 py-1.5 rounded-lg hover:bg-stone-50 transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
       </Modal>
